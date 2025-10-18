@@ -1,0 +1,18 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  receiver: 'slack-notifications'
+
+receivers:
+  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/XXXX/YYYY/ZZZZ'
+        channel: '#alerts'
+        send_resolved: true
+      
+  - name: 'self-healing-bot'
+    webhook_configs:
+      - url: 'http://alert_bot:5000/webhook'
+        send_resolved: true
