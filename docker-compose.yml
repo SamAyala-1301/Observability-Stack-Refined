@@ -6,17 +6,29 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - prometheus
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=transactions
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
     networks:
       - monitoring
 
   alert_bot:
-    build:
-      context: ./alert_bot
-    container_name: alert_bot
-    networks:
-      - monitoring
-
+      build:
+        context: ./alert_bot
+      container_name: alert_bot
+      ports:
+        - "5000:5000"
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      environment:
+        - DOCKER_API_VERSION=auto
+      networks:
+        - monitoring
+        
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -28,13 +40,37 @@ services:
     networks:
       - monitoring
 
-  alertmanager:
-    image: prom/alertmanager
-    container_name: alertmanager
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: transactions
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "9093:9093"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - monitoring
+
+  alertmanager:
+      image: prom/alertmanager
+      container_name: alertmanager
+      ports:
+        - "9093:9093"
+      volumes:
+        - ./alertm_config.yml:/etc/alertmanager/config.yml
+      command:
+        - '--config.file=/etc/alertmanager/config.yml'
+      networks:
+        - monitoring
 
   grafana:
     image: grafana/grafana
@@ -90,3 +126,6 @@ services:
 networks:
   monitoring:
     driver: bridge
+
+volumes:
+  postgres_data:
