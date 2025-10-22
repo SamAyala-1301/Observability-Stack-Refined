@@ -1,9 +1,9 @@
 flask
 prometheus-flask-exporter
 psycopg2-binary
+requests
 opentelemetry-api
 opentelemetry-sdk
 opentelemetry-instrumentation-flask
-opentelemetry-instrumentation-psycopg2
 opentelemetry-exporter-otlp
-redis
+pika

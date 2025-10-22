@@ -12,6 +12,10 @@ processors:
     send_batch_size: 50
 
 exporters:
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
   logging:
     loglevel: debug
 
@@ -20,4 +24,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging]
+      exporters: [otlp, logging]  # ← Both Tempo AND logging

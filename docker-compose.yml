@@ -16,6 +16,48 @@ services:
     networks:
       - monitoring
 
+  auth_service:
+    build:
+      context: ./services/auth
+    container_name: auth_service
+    ports:
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - JWT_SECRET=super-secret-key-change-me
+    networks:
+      - monitoring
+  
+  payment_service:
+    build:
+      context: ./services/payment
+    container_name: payment_service
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth_service:
+        condition: service_started
+    networks:
+      - monitoring
+
+  inventory_service:
+    build:
+      context: ./services/inventory
+    container_name: inventory_service
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - monitoring
+
   alert_bot:
       build:
         context: ./alert_bot
@@ -37,6 +79,7 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - ./prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml
     networks:
       - monitoring
 
@@ -57,6 +100,78 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - monitoring
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - monitoring
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      REDIS_ADDR: "redis:6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - monitoring
+    command:
+      - '--redis.addr=redis:6379'
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - monitoring
+
+  notification_worker:
+    build:
+      context: ./services/worker
+    container_name: notification_worker
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  api_gateway:
+    image: nginx:alpine
+    container_name: api_gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth_service
+      - payment_service
+      - inventory_service
     networks:
       - monitoring
 
@@ -161,3 +276,4 @@ volumes:
   postgres_data:
   tempo_data:
   loki_data:
+  redis_data:

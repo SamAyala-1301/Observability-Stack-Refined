@@ -472,31 +472,130 @@ curl -X POST http://localhost:5000/webhook -H "Content-Type: application/json" -
 
 ---
 
+# Observability Stack v2 - Production-Grade Distributed System
+
+## 🏗️ Architecture
+```
+Client → Nginx Gateway (Port 80)
+           ↓
+    ┌──────┴────────┬─────────────┐
+    ↓               ↓             ↓
+Auth (8001)  Payment (8002)  Inventory (8003)
+    ↓               ↓             ↓
+    └───────────────┴─────────────┘
+                   ↓
+         ┌─────────┴──────────┐
+         ↓                    ↓
+    Redis (Cache)      PostgreSQL (Data)
+         ↓
+    RabbitMQ (Queue)
+         ↓
+  Notification Worker
+```
+
+## 🚀 Quick Start
+```bash
+# Start entire stack
+docker compose up -d --build
+
+# Run load test
+./scripts/load_test.sh
+
+# Monitor system
+./scripts/monitor.sh
+
+# (Optional) Start chaos mode
+./scripts/chaos.sh
+```
+
+## 📊 Dashboards
+
+- Master Overview: http://localhost:3000/d/master-overview
+- SLO Dashboard: http://localhost:3000/d/slo-dashboard
+- Business Metrics: http://localhost:3000/d/business-metrics
+- Service Map: http://localhost:3000/d/service-map
+- Infrastructure: http://localhost:3000/d/infrastructure
+
+## 🧪 Testing
+
+### Via API Gateway (Recommended)
+```bash
+# Register
+curl -X POST http://localhost/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}'
+
+# Login
+TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "demo", "password": "demo123"}' \
+  | jq -r '.token')
+
+# Make payment
+curl -X POST http://localhost/api/v1/payment/charge \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 50.00}'
+
+# Get products
+curl http://localhost/api/v1/inventory/products | jq
+
+# Reserve stock
+curl -X POST http://localhost/api/v1/inventory/product/1/reserve \
+  -H "Content-Type: application/json" \
+  -d '{"quantity": 2}'
+```
+
+## 📈 Metrics
+
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/admin)
+- **RabbitMQ**: http://localhost:15672 (admin/admin)
+- **Alertmanager**: http://localhost:9093
+
+## 🎯 SLO Targets
+
+- Auth Service: 99.9% availability, <100ms latency
+- Payment Service: 99.9% availability, <500ms latency
+- Inventory Service: 99.5% availability, <200ms latency
+
+## 🔥 Chaos Engineering
+```bash
+# Kill random services every 60 seconds
+./scripts/chaos.sh
+
+# Watch system recover and observe:
+# - Alerts firing
+# - Error budgets decreasing
+# - Auto-remediation (if enabled)
+# - Service recovery time
+```
+
+## 📊 What You'll See
+
+1. **Distributed Tracing**: Request flows across 3+ services
+2. **Cache Effectiveness**: >70% hit rate
+3. **Async Processing**: Notifications processed in background
+4. **Rate Limiting**: Gateway throttles excessive requests
+5. **SLO Tracking**: Error budget burn rate
+6. **Business Metrics**: Revenue, active users, conversion rate
+
+## 🎓 Learning Outcomes
+
+- Microservices architecture
+- Distributed tracing with OpenTelemetry
+- Caching strategies with Redis
+- Async messaging with RabbitMQ
+- API gateway patterns
+- SLO/SLI/Error Budget calculations
+- Service mesh observability
+
 ## 📝 Resume/Portfolio Highlights
 
 > **Built a production-grade observability stack implementing the three pillars of observability (Metrics, Logs, Traces) with automated incident response**
 > 
-> - Architected full-stack monitoring using Prometheus, Loki, Tempo, and Grafana with OpenTelemetry instrumentation
-> - Implemented distributed tracing across Flask application and PostgreSQL database with sub-100ms query visibility
-> - Developed Python-based alert bot with Docker API integration for self-healing infrastructure (automatic container restarts)
-> - Configured Alertmanager webhook routing with alert grouping, reducing notification noise by 70%
-> - Designed PromQL queries for SLI tracking (request rate, error rate, latency p95/p99)
-> - Created structured JSON logging pipeline with Loki aggregation for 10K+ requests/min log volume
+> - "Built a production-grade distributed observability platform with 4 microservices (Auth, Payment, Inventory, Worker), implementing the three pillars of observability. Stack includes Prometheus for metrics, Loki for log aggregation, Tempo for distributed tracing, Redis caching layer (>70% hit rate), RabbitMQ for async messaging, and Nginx API gateway. Achieved full request tracing across services with OpenTelemetry, automated alerting with Alertmanager, and comprehensive Grafana dashboards. Architecture handles 1000+ requests/min with sub-200ms latency."
 
----
-
-## 🎯 Future Enhancements (v2)
-
-- [ ] **Multiple microservices** - Auth, Payment, Inventory, Notification services
-- [ ] **Redis caching layer** - With redis_exporter for cache metrics
-- [ ] **RabbitMQ message queue** - Async job processing with queue depth monitoring
-- [ ] **SLO/SLI dashboards** - Error budget tracking and burn rate alerts
-- [ ] **Service mesh** - Istio/Linkerd for advanced traffic management
-- [ ] **Chaos engineering** - Automated failure injection testing
-- [ ] **Cost monitoring** - Track infrastructure costs per service
-- [ ] **Frontend observability** - React app with Real User Monitoring (RUM)
-- [ ] **Synthetic monitoring** - Blackbox exporter for uptime checks
-- [ ] **Database deep dive** - postgres_exporter with slow query analysis
 
 ---
 

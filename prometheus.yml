@@ -19,5 +19,23 @@ scrape_configs:
     static_configs:
       - targets: ['cadvisor:8080']
 
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:9121']
+  
+  - job_name: 'auth_service'
+    static_configs:
+      - targets: ['auth_service:8001']
+
+  - job_name: 'payment_service'
+    static_configs:
+      - targets: ['payment_service:8002']
+  
+  - job_name: 'inventory_service'
+    static_configs:
+      - targets: ['inventory_service:8003']
+
+
 rule_files:
   - /etc/prometheus/alert_rules.yml
+  - /etc/prometheus/recording_rules.yml
