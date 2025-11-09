@@ -1,4 +1,4 @@
-"""HTTP probing for framework fingerprinting."""
+"""HTTP probing for framework fingerprinting - FIXED."""
 import requests
 from typing import Optional, Tuple
 from ..base import Framework
@@ -14,57 +14,80 @@ class HTTPProber:
         },
         'X-Powered-By': {
             'Express': Framework.EXPRESS,
-            'PHP': Framework.UNKNOWN,
         }
     }
     
     ENDPOINT_PATTERNS = {
         '/admin/': Framework.DJANGO,
-        '/swagger/': Framework.SPRING_BOOT,
         '/docs': Framework.FASTAPI,
-        '/actuator/': Framework.SPRING_BOOT,
+        '/actuator/health': Framework.SPRING_BOOT,
     }
     
     def probe(self, container) -> dict:
         """
         Probe container HTTP endpoints.
-        Returns framework hints based on HTTP responses.
+        FIXED: Try multiple connection methods.
         """
         hints = {}
         
         try:
-            # Get container's IP address
+            # METHOD 1: Try container IP
             container_ip = self._get_container_ip(container)
-            if not container_ip:
-                return hints
+            if container_ip:
+                hints.update(self._probe_ip(container_ip))
             
-            # Get exposed ports
-            ports = self._get_exposed_ports(container)
-            
-            for port in ports:
-                try:
-                    # Try HTTP probe
-                    response = requests.get(
-                        f"http://{container_ip}:{port}",
-                        timeout=3,
-                        allow_redirects=False
-                    )
-                    
-                    # Analyze headers
-                    header_hints = self._analyze_headers(response.headers)
-                    for framework, score in header_hints.items():
-                        hints[framework] = hints.get(framework, 0) + score
-                    
-                    # Check common endpoints
-                    endpoint_hints = self._probe_endpoints(container_ip, port)
-                    for framework, score in endpoint_hints.items():
-                        hints[framework] = hints.get(framework, 0) + score
-                    
-                except requests.exceptions.RequestException:
-                    continue
+            # METHOD 2: Try localhost with port mappings
+            if not hints:
+                port_mappings = self._get_port_mappings(container)
+                for host_port in port_mappings:
+                    hints.update(self._probe_localhost(host_port))
+                    if hints:
+                        break
         
         except Exception as e:
-            print(f"HTTP probe error: {e}")
+            # Silently fail - HTTP probing is optional
+            pass
+        
+        return hints
+    
+    def _probe_ip(self, ip: str, ports: list = [5000, 8000, 3000, 8080]) -> dict:
+        """Probe container by IP."""
+        hints = {}
+        
+        for port in ports:
+            try:
+                response = requests.get(
+                    f"http://{ip}:{port}",
+                    timeout=2,
+                    allow_redirects=False
+                )
+                
+                # Analyze headers
+                hints.update(self._analyze_headers(response.headers))
+                
+                if hints:
+                    break  # Found something, stop
+                    
+            except requests.exceptions.RequestException:
+                continue
+        
+        return hints
+    
+    def _probe_localhost(self, port: int) -> dict:
+        """Probe container via localhost port mapping."""
+        hints = {}
+        
+        try:
+            response = requests.get(
+                f"http://localhost:{port}",
+                timeout=2,
+                allow_redirects=False
+            )
+            
+            hints.update(self._analyze_headers(response.headers))
+            
+        except requests.exceptions.RequestException:
+            pass
         
         return hints
     
@@ -79,19 +102,21 @@ class HTTPProber:
             pass
         return None
     
-    def _get_exposed_ports(self, container) -> list:
-        """Get list of exposed ports."""
+    def _get_port_mappings(self, container) -> list:
+        """Get list of host port mappings."""
         ports = []
         try:
             port_bindings = container.attrs.get('NetworkSettings', {}).get('Ports', {})
-            for port_key in port_bindings.keys():
-                port_num = int(port_key.split('/')[0])
-                ports.append(port_num)
+            for port_key, bindings in port_bindings.items():
+                if bindings:
+                    for binding in bindings:
+                        host_port = binding.get('HostPort')
+                        if host_port:
+                            ports.append(int(host_port))
         except Exception:
-            # Default common ports
-            ports = [80, 8000, 8080, 5000, 3000, 4000]
+            pass
         
-        return ports[:5]  # Limit to 5 ports to avoid excessive probing
+        return ports
     
     def _analyze_headers(self, headers) -> dict:
         """Analyze HTTP headers for framework hints."""
@@ -102,28 +127,7 @@ class HTTPProber:
             
             for pattern, framework in patterns.items():
                 if pattern.lower() in header_value.lower():
-                    hints[framework] = 0.5
-        
-        return hints
-    
-    def _probe_endpoints(self, ip: str, port: int) -> dict:
-        """Probe common framework-specific endpoints."""
-        hints = {}
-        
-        for endpoint, framework in self.ENDPOINT_PATTERNS.items():
-            try:
-                response = requests.get(
-                    f"http://{ip}:{port}{endpoint}",
-                    timeout=2,
-                    allow_redirects=False
-                )
-                
-                # If endpoint exists (not 404), it's a hint
-                if response.status_code != 404:
-                    hints[framework] = hints.get(framework, 0) + 0.4
-                    
-            except requests.exceptions.RequestException:
-                continue
+                    hints[framework] = 0.6  # Increased from 0.5
         
         return hints
     
@@ -133,3 +137,4 @@ class HTTPProber:
             "header_patterns": self.HEADER_PATTERNS,
             "endpoint_patterns": self.ENDPOINT_PATTERNS
         }
+

@@ -1,7 +1,8 @@
-"""Main framework detection orchestrator - ENHANCED VERSION."""
+"""Main framework detection orchestrator - OPTIMIZED WEIGHTS."""
 import docker
 from typing import Optional, Dict
 from .base import Detector, DetectionResult, Framework, Language
+
 from .scanners.port_scanner import PortScanner
 from .scanners.process_scanner import ProcessScanner
 from .scanners.http_prober import HTTPProber
@@ -9,16 +10,13 @@ from .analyzers.env_analyzer import EnvAnalyzer
 from .analyzers.file_analyzer import FileAnalyzer
 from .analyzers.package_analyzer import PackageAnalyzer
 
+
 class FrameworkDetector(Detector):
-    """
-    Enhanced orchestrator using multiple detection strategies.
-    Combines: ports, processes, HTTP probes, env vars, files, packages.
-    """
+    """Enhanced orchestrator with optimized weights."""
     
     def __init__(self):
         self.docker_client = docker.from_env()
         
-        # Initialize all detectors
         self.port_scanner = PortScanner()
         self.process_scanner = ProcessScanner()
         self.http_prober = HTTPProber()
@@ -27,10 +25,7 @@ class FrameworkDetector(Detector):
         self.package_analyzer = PackageAnalyzer()
     
     def detect(self, container_id: str) -> DetectionResult:
-        """
-        Detect framework using ALL available strategies.
-        Returns high-confidence result with detailed metadata.
-        """
+        """Detect framework using ALL available strategies."""
         try:
             container = self.docker_client.containers.get(container_id)
             container_name = container.name
@@ -56,7 +51,7 @@ class FrameworkDetector(Detector):
             print("  └─ Package analysis...")
             package_hints = self.package_analyzer.analyze(container)
             
-            # Combine all results with weighted scoring
+            # Combine results
             framework, language, confidence, version = self._combine_results(
                 port_hints, 
                 process_hints,
@@ -91,40 +86,40 @@ class FrameworkDetector(Detector):
     def _combine_results(self, port_hints, process_hints, http_hints, 
                         env_hints, file_hints, package_hints):
         """
-        Combine all detection results with weighted scoring.
+        Combine with OPTIMIZED weights.
         
-        Weights (total = 1.0):
-        - Package analysis: 0.30 (most reliable)
-        - Process scanning: 0.25 (very reliable)
-        - File analysis: 0.20
-        - HTTP probing: 0.15
-        - Environment vars: 0.07
-        - Port scanning: 0.03 (least reliable)
+        NEW Weights (realistic for production):
+        - Package: 0.45 (most reliable)
+        - File: 0.35 (very reliable)
+        - Process: 0.30 (reliable when available)
+        - Environment: 0.25 (good signal)
+        - HTTP: 0.20 (can be spoofed)
+        - Port: 0.10 (weakest signal)
         """
         scores = {}
         version_hints = {}
         
-        # Weight configuration
+        # OPTIMIZED WEIGHTS
         weights = {
-            "package": 0.30,
-            "process": 0.25,
-            "file": 0.20,
-            "http": 0.15,
-            "env": 0.07,
-            "port": 0.03
+            "package": 0.45,
+            "file": 0.35,
+            "process": 0.30,
+            "env": 0.25,
+            "http": 0.20,
+            "port": 0.10
         }
         
-        # Aggregate scores from all sources
+        # Aggregate scores
         for hint_type, hints, weight in [
             ("package", package_hints, weights["package"]),
-            ("process", process_hints, weights["process"]),
             ("file", file_hints, weights["file"]),
-            ("http", http_hints, weights["http"]),
+            ("process", process_hints, weights["process"]),
             ("env", env_hints, weights["env"]),
+            ("http", http_hints, weights["http"]),
             ("port", port_hints, weights["port"])
         ]:
             for key, score in hints.items():
-                # Check if this is a version hint
+                # Check if version hint
                 if isinstance(key, str) and '_version' in key:
                     framework_name = key.replace('_version', '')
                     version_hints[framework_name] = score
@@ -136,14 +131,14 @@ class FrameworkDetector(Detector):
         if not scores:
             return Framework.UNKNOWN, Language.UNKNOWN, 0.0, None
         
-        # Get highest scoring framework
+        # Get best framework
         best_framework = max(scores, key=scores.get)
-        confidence = min(scores[best_framework], 1.0)  # Cap at 1.0
+        confidence = min(scores[best_framework], 1.0)
         
-        # Get version if available
+        # Get version
         version = version_hints.get(best_framework.value, None)
         
-        # Map framework to language
+        # Map to language
         language_map = {
             Framework.FLASK: Language.PYTHON,
             Framework.DJANGO: Language.PYTHON,
@@ -158,7 +153,7 @@ class FrameworkDetector(Detector):
         return best_framework, language, confidence, version
     
     def get_indicators(self) -> dict:
-        """Get all detection indicators from all modules."""
+        """Get all detection indicators."""
         return {
             "port_indicators": self.port_scanner.get_indicators(),
             "process_indicators": self.process_scanner.get_indicators(),

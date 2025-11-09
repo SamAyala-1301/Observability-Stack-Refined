@@ -74,9 +74,32 @@ ObsStack V3
 └── cli/               # Command-line interface
 ```
 
+
+# ObsStack V3 - Sprint 1 Complete ✅
+
+Auto-detection engine for 6 frameworks with enhanced CLI.
+
+## Quick Start
+```bash
+pip install -e .
+obs-stack detect <container>
+obs-stack detect-all
+```
+
+## Supported Frameworks
+- Flask, Django, FastAPI (Python)
+- Express, NestJS (Node.js)
+- Spring Boot (Java)
+
+## Status
+Sprint 1: ✅ Complete (Detection Engine)
+Sprint 2: 📅 Next (Auto-Instrumentation)
+
+
+
 ## Contributing
 
-We're in active development! Check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We're in active development! 
 
 ## License
 
