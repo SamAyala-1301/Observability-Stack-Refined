@@ -12,6 +12,9 @@ from core.detector.framework_detector import FrameworkDetector
 from core.detector.framework_db import get_all_frameworks
 from cli.commands.detect_all import detect_all_command
 from cli.commands.validate import validate_command
+from cli.commands.instrument import instrument_command
+from cli.commands.instrument_all import instrument_all_command
+from cli.commands.status import status_command
 
 console = Console()
 
@@ -30,7 +33,7 @@ def version():
     """Show version information."""
     console.print("\n[bold blue]ObsStack v3.0.0-alpha[/bold blue]")
     console.print("Auto-detection and instrumentation system")
-    console.print("\n[dim]Status: Sprint 1 - Detection Engine Active[/dim]\n")
+    console.print("\n[dim]Status: MS1 Complete - Detection + Instrumentation ✅[/dim]\n")
 
 @cli.command()
 @click.argument('container')
@@ -126,6 +129,35 @@ def list_indicators():
     for category, data in indicators.items():
         console.print(f"[cyan]{category.replace('_', ' ').title()}:[/cyan]")
         rprint(f"  {data}\n")
+
+@cli.command()
+@click.argument('container')
+def instrument(container):
+    """
+    Instrument a container with OpenTelemetry.
+    
+    CONTAINER: Container ID or name
+    
+    Adds observability to detected framework automatically.
+    """
+    instrument_command(container)
+
+@cli.command(name='instrument-all')
+def instrument_all():
+    """Instrument all running containers."""
+    instrument_all_command()
+
+@cli.command()
+@click.argument('container', required=False)
+def status(container):
+    """
+    Check instrumentation status.
+    
+    CONTAINER: Optional container ID or name. If omitted, checks all.
+    
+    Example: obs-stack status flask-app
+    """
+    status_command(container)
 
 if __name__ == '__main__':
     cli()
