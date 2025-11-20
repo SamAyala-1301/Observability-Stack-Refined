@@ -1,5 +1,5 @@
 """OpenTelemetry configuration generator."""
-from typing import Dict
+from typing import Dict, List
 
 class OTelConfigGenerator:
     """Generate OpenTelemetry configuration for different frameworks."""

@@ -15,6 +15,11 @@ from cli.commands.validate import validate_command
 from cli.commands.instrument import instrument_command
 from cli.commands.instrument_all import instrument_all_command
 from cli.commands.status import status_command
+from cli.commands.init import init_command
+from cli.commands.up import up_command
+from cli.commands.down import down_command
+from cli.commands.inject import inject_command, inject_into_running_command
+from cli.commands.logs import logs_command
 
 console = Console()
 
@@ -33,7 +38,7 @@ def version():
     """Show version information."""
     console.print("\n[bold blue]ObsStack v3.0.0-alpha[/bold blue]")
     console.print("Auto-detection and instrumentation system")
-    console.print("\n[dim]Status: MS1 Complete - Detection + Instrumentation ✅[/dim]\n")
+    console.print("\n[dim]Status: MS2 In Progress - Docker Integration 🚀[/dim]\n")
 
 @cli.command()
 @click.argument('container')
@@ -158,6 +163,72 @@ def status(container):
     Example: obs-stack status flask-app
     """
     status_command(container)
+
+# MS2 Commands - Docker Integration
+@cli.command()
+@click.option('--force', is_flag=True, help='Overwrite existing files')
+def init(force):
+    """
+    Initialize ObsStack in current directory.
+    
+    Creates backend infrastructure and configuration.
+    """
+    init_command(force)
+
+@cli.command()
+@click.option('--build', is_flag=True, help='Rebuild images')
+@click.option('--no-detach', is_flag=True, help='Run in foreground')
+def up(build, no_detach):
+    """
+    Start ObsStack observability backend.
+    
+    Starts Prometheus, Grafana, Loki, Tempo, and OTEL Collector.
+    """
+    up_command(detach=not no_detach, build=build)
+
+@cli.command()
+@click.option('--volumes', is_flag=True, help='Remove data volumes (WARNING: deletes all data)')
+@click.option('--network', is_flag=True, help='Remove obs-stack network')
+def down(volumes, network):
+    """
+    Stop ObsStack observability backend.
+    
+    Use --volumes to also delete all monitoring data.
+    """
+    down_command(volumes=volumes, remove_network=network)
+
+@cli.command()
+@click.option('--service', '-s', help='Specific service to inject into')
+@click.option('--file', '-f', default='docker-compose.yml', help='Compose file path')
+def inject(service, file):
+    """
+    Inject observability into docker-compose services.
+    
+    Modifies docker-compose.yml to add obs-stack integration.
+    """
+    inject_command(service=service, compose_file=file)
+
+@cli.command(name='inject-running')
+@click.argument('container', required=False)
+def inject_running(container):
+    """
+    Inject observability into running containers.
+    
+    Connects containers to obs-stack network.
+    """
+    inject_into_running_command(container)
+
+@cli.command()
+@click.option('--service', '-s', help='Specific service')
+@click.option('--follow', '-f', is_flag=True, help='Follow log output')
+@click.option('--tail', '-n', default=100, help='Number of lines to show')
+def logs(service, follow, tail):
+    """
+    View logs from ObsStack services.
+    
+    Example: obs-stack logs -f grafana
+    """
+    logs_command(service=service, follow=follow, tail=tail)
 
 if __name__ == '__main__':
     cli()
