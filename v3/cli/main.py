@@ -20,6 +20,9 @@ from cli.commands.up import up_command
 from cli.commands.down import down_command
 from cli.commands.inject import inject_command, inject_into_running_command
 from cli.commands.logs import logs_command
+from cli.commands.ps import ps_command
+from cli.commands.dashboard import dashboard_command
+from cli.commands.health import health_command
 
 console = Console()
 
@@ -49,6 +52,8 @@ def detect(container):
     CONTAINER: Container ID or name
     
     Example: obs-stack detect flask-app
+    
+    Tip: To scan all containers, use: obs-stack detect-all
     """
     console.print(f"\n🔍 Detecting framework in: [cyan]{container}[/cyan]\n")
     
@@ -79,6 +84,7 @@ def detect(container):
         
     except ValueError as e:
         console.print(f"[bold red]✗ Error:[/bold red] {e}")
+        console.print(f"\n[yellow]💡 Tip:[/yellow] To scan all containers, use: [cyan]obs-stack detect-all[/cyan]\n")
         sys.exit(1)
     except Exception as e:
         console.print(f"[bold red]✗ Unexpected error:[/bold red] {e}")
@@ -229,6 +235,15 @@ def logs(service, follow, tail):
     Example: obs-stack logs -f grafana
     """
     logs_command(service=service, follow=follow, tail=tail)
+
+@cli.command()
+def ps():
+    """
+    Show all ObsStack containers.
+    
+    Displays status, ports, and uptime for all services.
+    """
+    ps_command()
 
 if __name__ == '__main__':
     cli()

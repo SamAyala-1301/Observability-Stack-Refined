@@ -102,45 +102,56 @@ def up_command(detach: bool = True, build: bool = False):
 def _check_services(backend_dir: Path):
     """Check status of backend services."""
     try:
+        # Use docker ps directly instead of docker-compose ps
         result = subprocess.run(
-            ["docker-compose", "-f", "docker-compose.yml", "ps"],
-            cwd=backend_dir,
+            ["docker", "ps", "--filter", "name=obs-stack", "--format", "{{.Names}}\t{{.Status}}\t{{.Ports}}"],
             capture_output=True,
             text=True
         )
         
-        # Parse output
+        if result.returncode != 0:
+            console.print("[yellow]⚠️  Could not check service status[/yellow]")
+            return
+        
         lines = result.stdout.strip().split('\n')
-        if len(lines) < 3:
+        if not lines or lines[0] == '':
             console.print("[yellow]⚠️  No services found[/yellow]")
             return
         
         # Create status table
         table = Table(title="Service Status", show_header=True, header_style="bold magenta")
-        table.add_column("Service", style="cyan")
-        table.add_column("Status", style="white")
+        table.add_column("Service", style="cyan", width=20)
+        table.add_column("Status", style="white", width=15)
         table.add_column("Ports", style="yellow")
         
-        # Parse service lines (skip header)
-        for line in lines[2:]:
-            parts = line.split()
-            if len(parts) >= 4:
-                name = parts[0]
-                status = parts[3] if "Up" in line else "Down"
+        for line in lines:
+            if not line.strip():
+                continue
+            
+            parts = line.split('\t')
+            if len(parts) >= 2:
+                name = parts[0].replace("obs-stack-", "")
+                status_text = parts[1]
+                ports = parts[2] if len(parts) > 2 else "N/A"
                 
-                # Extract ports
-                ports = "N/A"
-                if "->" in line:
-                    port_parts = [p for p in parts if "->" in p]
-                    if port_parts:
-                        ports = port_parts[0].split("->")[0]
+                # Parse status
+                is_up = "Up" in status_text
+                status_color = "green" if is_up else "red"
+                status_icon = "✅" if is_up else "❌"
                 
-                status_color = "green" if "Up" in status else "red"
-                status_icon = "✅" if "Up" in status else "❌"
+                # Clean up ports display
+                if ports and ports != "N/A":
+                    # Extract just the external ports
+                    port_list = []
+                    for port_mapping in ports.split(','):
+                        if '->' in port_mapping:
+                            external = port_mapping.split('->')[0].strip()
+                            port_list.append(external)
+                    ports = ', '.join(port_list) if port_list else "N/A"
                 
                 table.add_row(
-                    name.replace("obs-stack-", ""),
-                    f"[{status_color}]{status_icon} {status}[/{status_color}]",
+                    name,
+                    f"[{status_color}]{status_icon} {'Running' if is_up else 'Down'}[/{status_color}]",
                     ports
                 )
         
